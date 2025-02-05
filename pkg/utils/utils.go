@@ -1,6 +1,8 @@
 package utils
 
-import "log"
+import (
+	"log"
+)
 
 func LogError(err error, message string) {
 	if err != nil {

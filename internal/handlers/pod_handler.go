@@ -13,13 +13,23 @@ import (
 )
 
 func MutatePod(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if ct := r.Header.Get("Content-Type"); ct != "application/json" {
+		http.Error(w, "Content-Type must be application/json", http.StatusUnsupportedMediaType)
+		return
+	}
+
 	body, err := io.ReadAll(r.Body)
-	defer r.Body.Close()
 	if err != nil {
 		utils.LogError(err, "Error reading body")
 		http.Error(w, "Error reading body", http.StatusBadRequest)
 		return
 	}
+	defer r.Body.Close()
 
 	var admissionReview admissionv1.AdmissionReview
 	if err := json.Unmarshal(body, &admissionReview); err != nil {
@@ -28,7 +38,7 @@ func MutatePod(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	admissionResponse, err := mutator.MutatePod(admissionReview)
+	admissionResponse, err := mutator.MutatePod(r.Context(), admissionReview)
 	if err != nil {
 		utils.LogError(err, "Error mutating pod")
 		http.Error(w, "Error mutating pod", http.StatusInternalServerError)
@@ -51,5 +61,7 @@ func MutatePod(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(responseBytes)
+	if _, err := w.Write(responseBytes); err != nil {
+		utils.LogError(err, "Error writing response")
+	}
 }
